@@ -556,8 +556,8 @@ SamplerState PointSampler { Filter = MIN_MAG_MIP_POINT; AddressU = Clamp; Addres
 #define SMAAGather(tex, coord) tex.Gather(LinearSampler, coord, 0)
 #endif
 #endif
-#if defined(SMAA_GLSL_2) || defined(SMAA_GLSL_3) || defined(SMAA_GLSL_4)
-#if defined(SMAA_GLSL_2)
+#if defined(SMAA_GLSL_2) || defined(SMAA_GLSL_ES2) || defined(SMAA_GLSL_3) || defined(SMAA_GLSL_4)
+#if defined(SMAA_GLSL_2) || defined(SMAA_GLSL_ES2)
 #define SMAASampleLevelZero(tex, coord) texture2D(tex, coord)
 #define SMAASampleLevelZeroPoint(tex, coord) texture2D(tex, coord)
 #define SMAASampleLevelZeroOffset(tex, coord, offset) texture2D(tex, coord + offset * SMAA_RT_METRICS.xy)
@@ -594,15 +594,20 @@ SamplerState PointSampler { Filter = MIN_MAG_MIP_POINT; AddressU = Clamp; Addres
 #define bool3 bvec3
 #define bool4 bvec4
 #endif
-#if defined(SMAA_GLSL_2)
+#if defined(SMAA_GLSL_2) || defined(SMAA_GLSL_ES2)
 #define SMAARound(v) floor((v) + .5)
 #define SMAAOffset(x,y) vec2(x,y)
 #else
 #define SMAARound(v) round(v)
 #define SMAAOffset(x,y) int2(x,y)
 #endif
+#if defined(SMAA_GLSL_ES2)
+#define SMAAWhile(condition) for (int i = 0; i < SMAA_MAX_SEARCH_STEPS; i++) { if (!(condition)) break;
+#else
+#define SMAAWhile(condition) while (condition) {
+#endif
 
-#if !defined(SMAA_HLSL_3) && !defined(SMAA_HLSL_4) && !defined(SMAA_HLSL_4_1) && !defined(SMAA_GLSL_2) && !defined(SMAA_GLSL_3) && !defined(SMAA_GLSL_4) && !defined(SMAA_CUSTOM_SL)
+#if !defined(SMAA_HLSL_3) && !defined(SMAA_HLSL_4) && !defined(SMAA_HLSL_4_1) && !defined(SMAA_GLSL_2) && !defined(SMAA_GLSL_ES2) && !defined(SMAA_GLSL_3) && !defined(SMAA_GLSL_4) && !defined(SMAA_CUSTOM_SL)
 #error you must define the shading language: SMAA_HLSL_*, SMAA_GLSL_* or SMAA_CUSTOM_SL
 #endif
 
@@ -878,8 +883,8 @@ float4 SMAADecodeDiagBilinearAccess(float4 e) {
 float2 SMAASearchDiag1(SMAATexture2D(edgesTex), float2 texcoord, float2 dir, out float2 e) {
     float4 coord = float4(texcoord, -1.0, 1.0);
     float3 t = float3(SMAA_RT_METRICS.xy, 1.0);
-    while (coord.z < float(SMAA_MAX_SEARCH_STEPS_DIAG - 1) &&
-           coord.w > 0.9) {
+    SMAAWhile (coord.z < float(SMAA_MAX_SEARCH_STEPS_DIAG - 1) &&
+           coord.w > 0.9)
         coord.xyz = mad(t, float3(dir, 1.0), coord.xyz);
         e = SMAASampleLevelZero(edgesTex, coord.xy).rg;
         coord.w = dot(e, float2(0.5, 0.5));
@@ -891,8 +896,8 @@ float2 SMAASearchDiag2(SMAATexture2D(edgesTex), float2 texcoord, float2 dir, out
     float4 coord = float4(texcoord, -1.0, 1.0);
     coord.x += 0.25 * SMAA_RT_METRICS.x; // See @SearchDiag2Optimization
     float3 t = float3(SMAA_RT_METRICS.xy, 1.0);
-    while (coord.z < float(SMAA_MAX_SEARCH_STEPS_DIAG - 1) &&
-           coord.w > 0.9) {
+    SMAAWhile (coord.z < float(SMAA_MAX_SEARCH_STEPS_DIAG - 1) &&
+           coord.w > 0.9)
         coord.xyz = mad(t, float3(dir, 1.0), coord.xyz);
 
         // @SearchDiag2Optimization
@@ -1041,9 +1046,9 @@ float SMAASearchXLeft(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 
      * which edges are active from the four fetched ones.
      */
     float2 e = float2(0.0, 1.0);
-    while (texcoord.x > end && 
+    SMAAWhile (texcoord.x > end && 
            e.g > 0.8281 && // Is there some edge not activated?
-           e.r == 0.0) { // Or is there a crossing edge that breaks the line?
+           e.r == 0.0) // Or is there a crossing edge that breaks the line?
         e = SMAASampleLevelZero(edgesTex, texcoord).rg;
         texcoord = mad(-float2(2.0, 0.0), SMAA_RT_METRICS.xy, texcoord);
     }
@@ -1066,9 +1071,9 @@ float SMAASearchXLeft(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 
 
 float SMAASearchXRight(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 texcoord, float end) {
     float2 e = float2(0.0, 1.0);
-    while (texcoord.x < end && 
+    SMAAWhile (texcoord.x < end && 
            e.g > 0.8281 && // Is there some edge not activated?
-           e.r == 0.0) { // Or is there a crossing edge that breaks the line?
+           e.r == 0.0) // Or is there a crossing edge that breaks the line?
         e = SMAASampleLevelZero(edgesTex, texcoord).rg;
         texcoord = mad(float2(2.0, 0.0), SMAA_RT_METRICS.xy, texcoord);
     }
@@ -1078,9 +1083,9 @@ float SMAASearchXRight(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2
 
 float SMAASearchYUp(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 texcoord, float end) {
     float2 e = float2(1.0, 0.0);
-    while (texcoord.y > end && 
+    SMAAWhile (texcoord.y > end && 
            e.r > 0.8281 && // Is there some edge not activated?
-           e.g == 0.0) { // Or is there a crossing edge that breaks the line?
+           e.g == 0.0) // Or is there a crossing edge that breaks the line?
         e = SMAASampleLevelZero(edgesTex, texcoord).rg;
         texcoord = mad(-float2(0.0, 2.0), SMAA_RT_METRICS.xy, texcoord);
     }
@@ -1090,9 +1095,9 @@ float SMAASearchYUp(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 te
 
 float SMAASearchYDown(SMAATexture2D(edgesTex), SMAATexture2D(searchTex), float2 texcoord, float end) {
     float2 e = float2(1.0, 0.0);
-    while (texcoord.y < end && 
+    SMAAWhile (texcoord.y < end && 
            e.r > 0.8281 && // Is there some edge not activated?
-           e.g == 0.0) { // Or is there a crossing edge that breaks the line?
+           e.g == 0.0) // Or is there a crossing edge that breaks the line?
         e = SMAASampleLevelZero(edgesTex, texcoord).rg;
         texcoord = mad(float2(0.0, 2.0), SMAA_RT_METRICS.xy, texcoord);
     }
