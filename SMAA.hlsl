@@ -1281,7 +1281,7 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
 
     // Is there any blending weight with a value greater than 0.0?
     SMAA_BRANCH
-    if (dot(a, float4(1.0, 1.0, 1.0, 1.0)) < 1e-5) {
+    if (dot(a, float4(1.0, 1.0, 1.0, 1.0)) <= 1e-5) {
         float4 color = SMAASampleLevelZero(colorTex, texcoord);
 
         #if SMAA_REPROJECTION
